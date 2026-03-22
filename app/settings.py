@@ -85,21 +85,21 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Use PostgreSQL on Render, SQLite locally
+# Use PostgreSQL (Neon/Render), SQLite locally
 db_from_env = os.environ.get('DATABASE_URL', '')
 if db_from_env:
-    try:
-        import dj_database_url
-        DATABASES = {
-            'default': dj_database_url.parse(db_from_env)
-        }
-    except ImportError:
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': db_from_env.split('/')[-1].split('?')[0],
+            'USER': db_from_env.split('://')[1].split(':')[0],
+            'PASSWORD': db_from_env.split(':')[2].split('@')[0],
+            'HOST': db_from_env.split('@')[1].split('/')[0],
+            'OPTIONS': {
+                'sslmode': 'require',
             }
         }
+    }
 else:
     DATABASES = {
         'default': {

@@ -16,3 +16,5 @@ services:
         value: "jahani-mart-backend.onrender.com"
       - key: CORS_ALLOWED_ORIGINS
         value: "https://jahani-mart-frontend.onrender.com"
+      - key: DATABASE_URL
+        value: "postgresql://neondb_owner:npg_lbh86WCGBeDt@ep-hidden-bread-a1y4ehiu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
