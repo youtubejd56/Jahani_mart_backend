@@ -141,6 +141,13 @@ class Product(models.Model):
     image_url = models.URLField(blank=True, help_text="Alternative: Use external image URL")
     stock = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    
+    # Flipkart Style Fields
+    specifications = models.TextField(blank=True, help_text="Detailed specifications or specs JSON")
+    warranty = models.CharField(max_length=255, blank=True)
+    manufacturer = models.CharField(max_length=255, blank=True)
+    in_the_box = models.CharField(max_length=255, blank=True, help_text="e.g. 1 SSD, Manual")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -152,6 +159,19 @@ class Product(models.Model):
         if self.original_price and self.price:
             return int(((self.original_price - self.price) / self.original_price) * 100)
         return self.discount
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='additional_images')
+    image = models.ImageField(upload_to='products/gallery/', blank=True, null=True)
+    image_url = models.URLField(blank=True, help_text="Alternative: External URL for gallery image")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        
+    def __str__(self):
+        return f"Image for {self.product.name}"
 
 
 class Review(models.Model):

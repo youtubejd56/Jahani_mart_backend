@@ -3,7 +3,7 @@ services:
     name: jahani-backend
     runtime: python
     region: singapore
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python manage.py makemigrations api && python manage.py migrate
     startCommand: gunicorn app.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY

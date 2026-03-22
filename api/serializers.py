@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ
+from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
@@ -62,17 +62,35 @@ class CategorySerializer(serializers.ModelSerializer):
             return obj.image_url
         return None
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'image_url']
+        
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        elif obj.image_url:
+            return obj.image_url
+        return None
+
+
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     discount = serializers.IntegerField(source='discount_percentage', read_only=True)
     image_url = serializers.SerializerMethodField()
+    additional_images = ProductImageSerializer(many=True, read_only=True)
     
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'description', 'price', 'original_price', 
             'discount', 'rating', 'category', 'category_name', 
-            'image', 'image_url', 'stock', 'is_active', 'created_at'
+            'image', 'image_url', 'additional_images',
+            'specifications', 'warranty', 'manufacturer', 'in_the_box',
+            'stock', 'is_active', 'created_at'
         ]
     
     def get_image_url(self, obj):
