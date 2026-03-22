@@ -13,8 +13,8 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: "app.settings"
       - key: ALLOWED_HOSTS
-        value: "jahani-mart-backend.onrender.com"
+        value: "jahani-mart-backend.onrender.com,jahani-mart.onrender.com"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://jahani-mart-frontend.onrender.com"
+        value: "https://jahani-mart.onrender.com"
       - key: DATABASE_URL
         value: "postgresql://neondb_owner:npg_lbh86WCGBeDt@ep-hidden-bread-a1y4ehiu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
