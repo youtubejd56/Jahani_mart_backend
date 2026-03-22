@@ -24,11 +24,16 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_image = serializers.URLField(source='product.image', read_only=True)
+    product_image = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_name', 'product_image', 'quantity', 'price']
+    
+    def get_product_image(self, obj):
+        if obj.product.image:
+            return obj.product.image.url
+        return obj.product.image_url
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -119,11 +124,16 @@ class WishlistSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
-    product_image = serializers.URLField(source='product.image', read_only=True)
+    product_image = serializers.SerializerMethodField()
     
     class Meta:
         model = CartItem
         fields = ['id', 'product', 'product_name', 'product_price', 'product_image', 'quantity', 'created_at']
+    
+    def get_product_image(self, obj):
+        if obj.product.image:
+            return obj.product.image.url
+        return obj.product.image_url
 
 
 class TicketReplySerializer(serializers.ModelSerializer):
