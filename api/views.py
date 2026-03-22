@@ -36,6 +36,52 @@ def product_detail(request, pk):
         return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
+def suggested_products(request, pk):
+    try:
+        product = Product.objects.get(pk=pk, is_active=True)
+        suggested_ids = []
+        
+        # 1. Market Basket Analysis (Collaborative Filtering)
+        # Find exactly what other customers bought in the same orders as this product
+        co_orders = OrderItem.objects.filter(product=product).values_list('order', flat=True)
+        co_products = OrderItem.objects.filter(order__in=co_orders)\
+            .exclude(product=product)\
+            .values('product')\
+            .annotate(purchase_count=models.Count('product'))\
+            .order_by('-purchase_count')[:4]
+            
+        suggested_ids.extend([item['product'] for item in co_products])
+        
+        # 2. Content-Based Filtering (Category + Best Rated)
+        if len(suggested_ids) < 4:
+            needed = 4 - len(suggested_ids)
+            category_match = Product.objects.filter(
+                category=product.category, 
+                is_active=True
+            ).exclude(pk=pk).exclude(pk__in=suggested_ids).order_by('-rating')[:needed]
+            suggested_ids.extend([p.pk for p in category_match])
+            
+        # 3. Fallback: Global Trending (Highest Rated Items overall)
+        if len(suggested_ids) < 4:
+            needed = 4 - len(suggested_ids)
+            global_popular = Product.objects.filter(is_active=True)\
+                .exclude(pk=pk).exclude(pk__in=suggested_ids).order_by('-rating')[:needed]
+            suggested_ids.extend([p.pk for p in global_popular])
+            
+        # Fetch the objects in the exact algorithmic order calculated above
+        suggested = []
+        for sid in suggested_ids:
+            try:
+                suggested.append(Product.objects.get(pk=sid))
+            except Product.DoesNotExist:
+                pass
+                
+        serializer = ProductSerializer(suggested, many=True)
+        return Response(serializer.data)
+    except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
 def category_list(request):
     categories = Category.objects.all()
     serializer = CategorySerializer(categories, many=True)
