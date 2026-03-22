@@ -1,30 +1,18 @@
-databases:
-  - name: jahani-db
-    databaseName: jahani_db
-    user: jahani_user
-    plan: free
-
 services:
   - type: web
     name: jahani-backend
     runtime: python
-    region: oregon
+    region: singapore
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --chdir app app.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: "False"
+      - key: DJANGO_SETTINGS_MODULE
+        value: "app.settings"
       - key: ALLOWED_HOSTS
-        value: "your-backend.onrender.com"
+        value: "jahani-mart-backend.onrender.com"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://your-frontend.onrender.com"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: jahani-db
-          property: connectionString
-    disk:
-      name: media
-      mountPath: /app/media
-      sizeGB: 1
+        value: "https://jahani-mart-frontend.onrender.com"
