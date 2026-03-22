@@ -120,7 +120,8 @@ class CartItem(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100)
     icon = models.CharField(max_length=50, blank=True)
-    image = models.URLField(blank=True)
+    image = models.ImageField(upload_to='categories/', blank=True, null=True)
+    image_url = models.URLField(blank=True, help_text="Alternative: Use external image URL")
     
     class Meta:
         verbose_name_plural = 'Categories'
