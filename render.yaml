@@ -18,3 +18,9 @@ services:
         value: "https://jahani-mart.onrender.com"
       - key: DATABASE_URL
         value: "postgresql://neondb_owner:npg_lbh86WCGBeDt@ep-hidden-bread-a1y4ehiu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+      - key: CLOUDINARY_CLOUD_NAME
+        value: "ddoibtvxo"
+      - key: CLOUDINARY_API_KEY
+        value: "679155336334975"
+      - key: CLOUDINARY_API_SECRET
+        value: "SXnRD0bB-jEkyozdtmdAwcYBxxE"
