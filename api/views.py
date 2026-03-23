@@ -11,10 +11,12 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost
+from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, OTPVerification
 from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer
 import random
 import string
+import secrets
+from datetime import timedelta
 from .views_support import support_tickets, support_ticket_detail, ticket_reply, faq_list, create_support_ticket, admin_all_tickets, admin_ticket_detail, admin_ticket_reply, admin_update_ticket_status
 
 def home(request):
@@ -546,10 +548,18 @@ def register(request):
     
     if not mobile or not password:
         return Response({'error': 'Mobile number and password are required'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Check if mobile already exists in Profile
+
+    # Validate mobile (digits only)
+    if not mobile.isdigit() or len(mobile) < 7:
+        return Response({'error': 'Enter a valid mobile number (digits only, min 7 digits)'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if mobile already exists
     if Profile.objects.filter(mobile=mobile).exists():
-        return Response({'error': 'Mobile number already registered'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Mobile number already registered. Please login.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check email uniqueness
+    if email and User.objects.filter(email=email).exists():
+        return Response({'error': 'Email already registered. Please use a different email.'}, status=status.HTTP_400_BAD_REQUEST)
     
     # Use mobile as username
     user = User.objects.create_user(
@@ -612,6 +622,122 @@ def user_login(request):
 def user_logout(request):
     logout(request)
     return Response({'message': 'Logout successful'})
+
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_otp(request):
+    """Send OTP to registered mobile number for password reset"""
+    mobile = request.data.get('mobile', '').strip()
+
+    if not mobile:
+        return Response({'error': 'Mobile number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if mobile is registered
+    if not Profile.objects.filter(mobile=mobile).exists():
+        return Response({'error': 'No account found with this mobile number'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Delete old unverified OTPs for this mobile
+    OTPVerification.objects.filter(mobile=mobile, is_verified=False).delete()
+
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+    expires_at = timezone.now() + timedelta(minutes=10)
+
+    OTPVerification.objects.create(
+        mobile=mobile,
+        otp=otp,
+        expires_at=expires_at
+    )
+
+    # In production: integrate SMS gateway (Twilio, MSG91, etc.)
+    # For demo: return OTP in response
+    return Response({
+        'message': 'OTP sent successfully',
+        'demo_otp': otp,   # REMOVE in production
+        'expires_in': 600  # seconds
+    })
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp(request):
+    """Verify OTP and return a short-lived reset token"""
+    mobile = request.data.get('mobile', '').strip()
+    otp = request.data.get('otp', '').strip()
+
+    if not mobile or not otp:
+        return Response({'error': 'Mobile and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        otp_obj = OTPVerification.objects.filter(
+            mobile=mobile,
+            otp=otp,
+            is_verified=False
+        ).latest('created_at')
+
+        if timezone.now() > otp_obj.expires_at:
+            otp_obj.delete()
+            return Response({'error': 'OTP has expired. Please request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark verified and generate reset token
+        reset_token = secrets.token_urlsafe(32)
+        otp_obj.is_verified = True
+        otp_obj.reset_token = reset_token
+        otp_obj.save()
+
+        return Response({
+            'message': 'OTP verified successfully',
+            'reset_token': reset_token
+        })
+
+    except OTPVerification.DoesNotExist:
+        return Response({'error': 'Invalid OTP. Please check and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """Reset password using verified OTP reset token"""
+    mobile = request.data.get('mobile', '').strip()
+    new_password = request.data.get('new_password', '')
+    reset_token = request.data.get('reset_token', '').strip()
+
+    if not all([mobile, new_password, reset_token]):
+        return Response({'error': 'Mobile, reset token, and new password are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_password) < 6:
+        return Response({'error': 'Password must be at least 6 characters'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify reset token
+    try:
+        otp_obj = OTPVerification.objects.get(
+            mobile=mobile,
+            reset_token=reset_token,
+            is_verified=True
+        )
+        # Allow 30-min window after OTP expiry to complete reset
+        if timezone.now() > otp_obj.expires_at + timedelta(minutes=30):
+            otp_obj.delete()
+            return Response({'error': 'Session expired. Please start again.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except OTPVerification.DoesNotExist:
+        return Response({'error': 'Invalid or expired session. Please verify OTP again.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Reset the password
+    try:
+        profile = Profile.objects.get(mobile=mobile)
+        user = profile.user
+        user.set_password(new_password)
+        user.save()
+        otp_obj.delete()  # Invalidate token after use
+        return Response({'message': 'Password reset successfully'})
+    except Profile.DoesNotExist:
+        return Response({'error': 'Account not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @csrf_exempt
 @api_view(['GET'])

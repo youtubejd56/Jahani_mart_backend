@@ -305,3 +305,18 @@ class BlogPost(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class OTPVerification(models.Model):
+    mobile = models.CharField(max_length=20)
+    otp = models.CharField(max_length=6)
+    reset_token = models.CharField(max_length=128, blank=True)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"OTP for {self.mobile}"
