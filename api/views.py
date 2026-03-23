@@ -11,8 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ
-from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer
+from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost
+from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer
 import random
 import string
 from .views_support import support_tickets, support_ticket_detail, ticket_reply, faq_list, create_support_ticket, admin_all_tickets, admin_ticket_detail, admin_ticket_reply, admin_update_ticket_status
@@ -987,3 +987,112 @@ def add_money(request):
         'message': 'Money added successfully',
         'balance': float(wallet.balance)
     })
+
+
+# ─── Story Section API ───────────────────────────────────────────────
+@csrf_exempt
+@api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_story_sections(request):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'GET':
+        stories = StorySection.objects.all().order_by('order')
+        serializer = StorySectionSerializer(stories, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = StorySectionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_story_section_detail(request, section_id):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        story = StorySection.objects.get(id=section_id)
+    except StorySection.DoesNotExist:
+        return Response({'error': 'Story section not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(StorySectionSerializer(story).data)
+
+    elif request.method == 'PUT':
+        serializer = StorySectionSerializer(story, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        story.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─── Blog Post API ───────────────────────────────────────────────────
+@csrf_exempt
+@api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_blog_posts(request):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'GET':
+        posts = BlogPost.objects.all()
+        serializer = BlogPostSerializer(posts, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = BlogPostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_blog_post_detail(request, post_id):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        post = BlogPost.objects.get(id=post_id)
+    except BlogPost.DoesNotExist:
+        return Response({'error': 'Blog post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(BlogPostSerializer(post).data)
+
+    elif request.method == 'PUT':
+        serializer = BlogPostSerializer(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        post.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─── Public Blog Posts API (for Blog.jsx page) ───────────────────────
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_blog_posts(request):
+    posts = BlogPost.objects.filter(is_published=True)
+    serializer = BlogPostSerializer(posts, many=True)
+    return Response(serializer.data)

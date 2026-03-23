@@ -56,4 +56,12 @@ urlpatterns = [
     path('admin/support/tickets/<str:ticket_id>/', views.admin_ticket_detail, name='admin_ticket_detail'),
     path('admin/support/tickets/<str:ticket_id>/reply/', views.admin_ticket_reply, name='admin_ticket_reply'),
     path('admin/support/tickets/<str:ticket_id>/status/', views.admin_update_ticket_status, name='admin_update_ticket_status'),
+    # Admin Story Sections
+    path('admin/stories/', views.admin_story_sections, name='admin_story_sections'),
+    path('admin/stories/<int:section_id>/', views.admin_story_section_detail, name='admin_story_section_detail'),
+    # Admin Blog Posts
+    path('admin/blog/', views.admin_blog_posts, name='admin_blog_posts'),
+    path('admin/blog/<int:post_id>/', views.admin_blog_post_detail, name='admin_blog_post_detail'),
+    # Public Blog Posts
+    path('blog/', views.public_blog_posts, name='public_blog_posts'),
 ]

@@ -271,3 +271,37 @@ class FAQ(models.Model):
     
     def __str__(self):
         return self.question
+
+
+class StorySection(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    image_url = models.URLField(blank=True)
+    order = models.IntegerField(default=0)
+    is_reversed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.title
+
+
+class BlogPost(models.Model):
+    title = models.CharField(max_length=255)
+    excerpt = models.TextField(blank=True)
+    content = models.TextField(blank=True)
+    category = models.CharField(max_length=100, blank=True)
+    image_url = models.URLField(blank=True)
+    date = models.CharField(max_length=50, blank=True)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title

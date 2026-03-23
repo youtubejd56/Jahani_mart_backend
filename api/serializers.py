@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ
+from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
@@ -181,3 +181,15 @@ class FAQSerializer(serializers.ModelSerializer):
     class Meta:
         model = FAQ
         fields = ['id', 'question', 'answer', 'category', 'order', 'is_active', 'created_at']
+
+
+class StorySectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StorySection
+        fields = ['id', 'title', 'description', 'image_url', 'order', 'is_reversed', 'created_at', 'updated_at']
+
+
+class BlogPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlogPost
+        fields = ['id', 'title', 'excerpt', 'content', 'category', 'image_url', 'date', 'is_published', 'created_at', 'updated_at']
