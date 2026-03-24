@@ -163,18 +163,39 @@ class TicketReplySerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'is_admin_reply', 'created_at']
 
 
+class OrderDetailSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Order
+        fields = ['order_id', 'status', 'total_amount', 'payment_method', 
+                  'shipping_name', 'shipping_phone', 'shipping_address', 
+                  'shipping_city', 'shipping_state', 'shipping_pincode', 'items']
+    
+    def get_items(self, obj):
+        items = obj.items.all()
+        return [{'product_name': item.product.name, 'quantity': item.quantity, 'price': str(item.price)} for item in items]
+
+
 class SupportTicketSerializer(serializers.ModelSerializer):
     replies = TicketReplySerializer(many=True, read_only=True)
     order_id = serializers.CharField(source='order.order_id', read_only=True)
+    order_details = serializers.SerializerMethodField()
+    user_name = serializers.CharField(source='user.username', read_only=True)
     
     class Meta:
         model = SupportTicket
         fields = [
             'id', 'ticket_id', 'ticket_type', 'subject', 'description', 
-            'order', 'order_id', 'priority', 'status', 'replies', 
-            'created_at', 'updated_at'
+            'order', 'order_id', 'order_details', 'priority', 'status', 'replies',
+            'user_name', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'ticket_id', 'status', 'created_at', 'updated_at']
+    
+    def get_order_details(self, obj):
+        if obj.order:
+            return OrderDetailSerializer(obj.order).data
+        return None
 
 
 class FAQSerializer(serializers.ModelSerializer):
