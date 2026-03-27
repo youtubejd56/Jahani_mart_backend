@@ -31,9 +31,12 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'product_name', 'product_image', 'quantity', 'price']
     
     def get_product_image(self, obj):
-        if obj.product.image:
-            return obj.product.image.url
-        return obj.product.image_url
+        try:
+            if obj.product.image:
+                return obj.product.image.url
+        except Exception:
+            pass
+        return obj.product.image_url or None
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -56,11 +59,12 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'icon', 'image', 'image_url']
         
     def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        elif obj.image_url:
-            return obj.image_url
-        return None
+        try:
+            if obj.image:
+                return obj.image.url
+        except Exception:
+            pass
+        return obj.image_url or None
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -70,11 +74,12 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'image_url']
         
     def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        elif obj.image_url:
-            return obj.image_url
-        return None
+        try:
+            if obj.image:
+                return obj.image.url
+        except Exception:
+            pass
+        return obj.image_url or None
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -94,11 +99,12 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
     
     def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        elif obj.image_url:
-            return obj.image_url
-        return None
+        try:
+            if obj.image:
+                return obj.image.url
+        except Exception:
+            pass
+        return obj.image_url or None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -125,9 +131,11 @@ class WishlistSerializer(serializers.ModelSerializer):
     product_stock = serializers.IntegerField(source='product.stock', read_only=True)
     
     def get_product_image(self, obj):
-        # Return image URL or external URL
-        if obj.product.image:
-            return obj.product.image.url
+        try:
+            if obj.product.image:
+                return obj.product.image.url
+        except Exception:
+            pass
         return obj.product.image_url or None
     
     class Meta:
@@ -149,9 +157,12 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'product_name', 'product_price', 'product_image', 'quantity', 'created_at']
     
     def get_product_image(self, obj):
-        if obj.product.image:
-            return obj.product.image.url
-        return obj.product.image_url
+        try:
+            if obj.product.image:
+                return obj.product.image.url
+        except Exception:
+            pass
+        return obj.product.image_url or None
 
 
 class TicketReplySerializer(serializers.ModelSerializer):
@@ -233,9 +244,12 @@ class ProductReturnSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'return_id', 'status', 'refund_amount', 'admin_notes', 'created_at', 'updated_at']
     
     def get_product_image(self, obj):
-        if obj.order_item.product.image:
-            return obj.order_item.product.image.url
-        return obj.order_item.product.image_url
+        try:
+            if obj.order_item.product.image:
+                return obj.order_item.product.image.url
+        except Exception:
+            pass
+        return obj.order_item.product.image_url or None
 
 
 class ProductCancellationSerializer(serializers.ModelSerializer):
@@ -255,9 +269,12 @@ class ProductCancellationSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'cancellation_id', 'status', 'refund_amount', 'admin_notes', 'created_at', 'updated_at']
     
     def get_product_image(self, obj):
-        if obj.order_item.product.image:
-            return obj.order_item.product.image.url
-        return obj.order_item.product.image_url
+        try:
+            if obj.order_item.product.image:
+                return obj.order_item.product.image.url
+        except Exception:
+            pass
+        return obj.order_item.product.image_url or None
 
 
 class ProductReturnAdminSerializer(serializers.ModelSerializer):
