@@ -320,3 +320,82 @@ class OTPVerification(models.Model):
 
     def __str__(self):
         return f"OTP for {self.mobile}"
+
+
+class ProductReturn(models.Model):
+    RETURN_STATUS = [
+        ('Requested', 'Requested'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
+        ('Pickup Scheduled', 'Pickup Scheduled'),
+        ('Picked Up', 'Picked Up'),
+        ('Refunded', 'Refunded'),
+        ('Completed', 'Completed'),
+    ]
+    
+    RETURN_REASONS = [
+        ('Defective', 'Defective/Damaged Product'),
+        ('Wrong Item', 'Wrong Item Received'),
+        ('Not As Described', 'Not As Described'),
+        ('Size Issue', 'Size/Fit Issue'),
+        ('Changed Mind', 'Changed Mind'),
+        ('Other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_returns')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='returns')
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name='returns')
+    return_id = models.CharField(max_length=20, unique=True)
+    reason = models.CharField(max_length=50, choices=RETURN_REASONS)
+    description = models.TextField(blank=True, help_text="Additional details about the return")
+    status = models.CharField(max_length=20, choices=RETURN_STATUS, default='Requested')
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    refund_method = models.CharField(max_length=20, default='Wallet', choices=[('Wallet', 'Wallet'), ('Original', 'Original Payment Method')])
+    pickup_date = models.DateField(null=True, blank=True)
+    pickup_address = models.TextField(blank=True)
+    admin_notes = models.TextField(blank=True, help_text="Admin notes for internal use")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Return #{self.return_id} - {self.order_item.product.name}"
+
+
+class ProductCancellation(models.Model):
+    CANCELLATION_STATUS = [
+        ('Requested', 'Requested'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
+        ('Refunded', 'Refunded'),
+        ('Completed', 'Completed'),
+    ]
+    
+    CANCELLATION_REASONS = [
+        ('Changed Mind', 'Changed Mind'),
+        ('Found Better Price', 'Found Better Price Elsewhere'),
+        ('Delivery Delay', 'Delivery Taking Too Long'),
+        ('Ordered By Mistake', 'Ordered By Mistake'),
+        ('Other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_cancellations')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='cancellations')
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name='cancellations')
+    cancellation_id = models.CharField(max_length=20, unique=True)
+    reason = models.CharField(max_length=50, choices=CANCELLATION_REASONS)
+    description = models.TextField(blank=True, help_text="Additional details about the cancellation")
+    status = models.CharField(max_length=20, choices=CANCELLATION_STATUS, default='Requested')
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    refund_method = models.CharField(max_length=20, default='Wallet', choices=[('Wallet', 'Wallet'), ('Original', 'Original Payment Method')])
+    admin_notes = models.TextField(blank=True, help_text="Admin notes for internal use")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Cancellation #{self.cancellation_id} - {self.order_item.product.name}"

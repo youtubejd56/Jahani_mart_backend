@@ -11,8 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, OTPVerification
-from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer
+from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, OTPVerification, ProductReturn, ProductCancellation
+from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer, ProductReturnSerializer, ProductCancellationSerializer, ProductReturnAdminSerializer, ProductCancellationAdminSerializer
 import random
 import string
 import secrets
@@ -24,9 +24,13 @@ def home(request):
 
 @api_view(['GET'])
 def product_list(request):
-    products = Product.objects.filter(is_active=True)
-    serializer = ProductSerializer(products, many=True)
-    return Response(serializer.data)
+    try:
+        products = Product.objects.filter(is_active=True)
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error in product_list: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 def product_detail(request, pk):
@@ -85,9 +89,13 @@ def suggested_products(request, pk):
 
 @api_view(['GET'])
 def category_list(request):
-    categories = Category.objects.all()
-    serializer = CategorySerializer(categories, many=True)
-    return Response(serializer.data)
+    try:
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error in category_list: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 def products_by_category(request, category_id):
@@ -1222,3 +1230,254 @@ def public_blog_posts(request):
     posts = BlogPost.objects.filter(is_published=True)
     serializer = BlogPostSerializer(posts, many=True)
     return Response(serializer.data)
+
+
+# ─── Product Return API ───────────────────────────────────────────────
+@api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def product_returns(request):
+    """Get user's returns or create a new return request"""
+    if request.method == 'GET':
+        returns = ProductReturn.objects.filter(user=request.user).select_related('order', 'order_item', 'order_item__product')
+        serializer = ProductReturnSerializer(returns, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        order_item_id = request.data.get('order_item')
+        reason = request.data.get('reason')
+        description = request.data.get('description', '')
+        
+        if not order_item_id or not reason:
+            return Response({'error': 'Order item and reason are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            order_item = OrderItem.objects.get(id=order_item_id, order__user=request.user)
+        except OrderItem.DoesNotExist:
+            return Response({'error': 'Order item not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if order is delivered
+        if order_item.order.status != 'Delivered':
+            return Response({'error': 'Returns can only be requested for delivered orders'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if return already exists for this item
+        if ProductReturn.objects.filter(order_item=order_item).exists():
+            return Response({'error': 'Return request already exists for this item'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate return ID
+        return_id = 'RET' + ''.join(random.choices(string.digits, k=8))
+        
+        return_request = ProductReturn.objects.create(
+            user=request.user,
+            order=order_item.order,
+            order_item=order_item,
+            return_id=return_id,
+            reason=reason,
+            description=description,
+            refund_amount=order_item.price * order_item.quantity
+        )
+        
+        serializer = ProductReturnSerializer(return_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def product_return_detail(request, return_id):
+    """Get details of a specific return request"""
+    try:
+        return_request = ProductReturn.objects.get(return_id=return_id, user=request.user)
+        serializer = ProductReturnSerializer(return_request)
+        return Response(serializer.data)
+    except ProductReturn.DoesNotExist:
+        return Response({'error': 'Return request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ─── Product Cancellation API ─────────────────────────────────────────
+@api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def product_cancellations(request):
+    """Get user's cancellations or create a new cancellation request"""
+    if request.method == 'GET':
+        cancellations = ProductCancellation.objects.filter(user=request.user).select_related('order', 'order_item', 'order_item__product')
+        serializer = ProductCancellationSerializer(cancellations, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        order_item_id = request.data.get('order_item')
+        reason = request.data.get('reason')
+        description = request.data.get('description', '')
+        
+        if not order_item_id or not reason:
+            return Response({'error': 'Order item and reason are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            order_item = OrderItem.objects.get(id=order_item_id, order__user=request.user)
+        except OrderItem.DoesNotExist:
+            return Response({'error': 'Order item not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if order can be cancelled (not delivered or already cancelled)
+        if order_item.order.status in ['Delivered', 'Cancelled']:
+            return Response({'error': 'This order cannot be cancelled'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if cancellation already exists for this item
+        if ProductCancellation.objects.filter(order_item=order_item).exists():
+            return Response({'error': 'Cancellation request already exists for this item'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate cancellation ID
+        cancellation_id = 'CAN' + ''.join(random.choices(string.digits, k=8))
+        
+        cancellation = ProductCancellation.objects.create(
+            user=request.user,
+            order=order_item.order,
+            order_item=order_item,
+            cancellation_id=cancellation_id,
+            reason=reason,
+            description=description,
+            refund_amount=order_item.price * order_item.quantity
+        )
+        
+        serializer = ProductCancellationSerializer(cancellation)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def product_cancellation_detail(request, cancellation_id):
+    """Get details of a specific cancellation request"""
+    try:
+        cancellation = ProductCancellation.objects.get(cancellation_id=cancellation_id, user=request.user)
+        serializer = ProductCancellationSerializer(cancellation)
+        return Response(serializer.data)
+    except ProductCancellation.DoesNotExist:
+        return Response({'error': 'Cancellation request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ─── Admin Return/Cancellation Management API ─────────────────────────
+@csrf_exempt
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_all_returns(request):
+    """Admin: Get all return requests"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    returns = ProductReturn.objects.all().select_related('user', 'order', 'order_item', 'order_item__product').order_by('-created_at')
+    serializer = ProductReturnAdminSerializer(returns, many=True)
+    return Response(serializer.data)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_return_detail(request, return_id):
+    """Admin: Get or update a return request"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        return_request = ProductReturn.objects.get(id=return_id)
+    except ProductReturn.DoesNotExist:
+        return Response({'error': 'Return request not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        serializer = ProductReturnAdminSerializer(return_request)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        status_val = request.data.get('status')
+        admin_notes = request.data.get('admin_notes', '')
+        pickup_date = request.data.get('pickup_date')
+        pickup_address = request.data.get('pickup_address', '')
+        
+        if status_val:
+            return_request.status = status_val
+        if admin_notes:
+            return_request.admin_notes = admin_notes
+        if pickup_date:
+            return_request.pickup_date = pickup_date
+        if pickup_address:
+            return_request.pickup_address = pickup_address
+        
+        return_request.save()
+        
+        # If refunded, credit to wallet
+        if status_val == 'Refunded' and return_request.refund_amount:
+            wallet, created = Wallet.objects.get_or_create(user=return_request.user)
+            wallet.balance += return_request.refund_amount
+            wallet.save()
+            
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='Credit',
+                amount=return_request.refund_amount,
+                description=f'Refund for return #{return_request.return_id}'
+            )
+        
+        serializer = ProductReturnAdminSerializer(return_request)
+        return Response(serializer.data)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_all_cancellations(request):
+    """Admin: Get all cancellation requests"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    cancellations = ProductCancellation.objects.all().select_related('user', 'order', 'order_item', 'order_item__product').order_by('-created_at')
+    serializer = ProductCancellationAdminSerializer(cancellations, many=True)
+    return Response(serializer.data)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_cancellation_detail(request, cancellation_id):
+    """Admin: Get or update a cancellation request"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        cancellation = ProductCancellation.objects.get(id=cancellation_id)
+    except ProductCancellation.DoesNotExist:
+        return Response({'error': 'Cancellation request not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        serializer = ProductCancellationAdminSerializer(cancellation)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        status_val = request.data.get('status')
+        admin_notes = request.data.get('admin_notes', '')
+        
+        if status_val:
+            cancellation.status = status_val
+        if admin_notes:
+            cancellation.admin_notes = admin_notes
+        
+        cancellation.save()
+        
+        # If refunded, credit to wallet
+        if status_val == 'Refunded' and cancellation.refund_amount:
+            wallet, created = Wallet.objects.get_or_create(user=cancellation.user)
+            wallet.balance += cancellation.refund_amount
+            wallet.save()
+            
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='Credit',
+                amount=cancellation.refund_amount,
+                description=f'Refund for cancellation #{cancellation.cancellation_id}'
+            )
+        
+        serializer = ProductCancellationAdminSerializer(cancellation)
+        return Response(serializer.data)

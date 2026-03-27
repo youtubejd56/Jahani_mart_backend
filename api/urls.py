@@ -67,4 +67,15 @@ urlpatterns = [
     path('admin/blog/<int:post_id>/', views.admin_blog_post_detail, name='admin_blog_post_detail'),
     # Public Blog Posts
     path('blog/', views.public_blog_posts, name='public_blog_posts'),
+    # Product Returns
+    path('returns/', views.product_returns, name='product_returns'),
+    path('returns/<str:return_id>/', views.product_return_detail, name='product_return_detail'),
+    # Product Cancellations
+    path('cancellations/', views.product_cancellations, name='product_cancellations'),
+    path('cancellations/<str:cancellation_id>/', views.product_cancellation_detail, name='product_cancellation_detail'),
+    # Admin Returns/Cancellations
+    path('admin/returns/', views.admin_all_returns, name='admin_all_returns'),
+    path('admin/returns/<int:return_id>/', views.admin_return_detail, name='admin_return_detail'),
+    path('admin/cancellations/', views.admin_all_cancellations, name='admin_all_cancellations'),
+    path('admin/cancellations/<int:cancellation_id>/', views.admin_cancellation_detail, name='admin_cancellation_detail'),
 ]

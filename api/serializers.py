@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost
+from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, ProductReturn, ProductCancellation
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
@@ -214,3 +214,105 @@ class BlogPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlogPost
         fields = ['id', 'title', 'excerpt', 'content', 'category', 'image_url', 'date', 'is_published', 'created_at', 'updated_at']
+
+
+class ProductReturnSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='order_item.product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    order_id = serializers.CharField(source='order.order_id', read_only=True)
+    quantity = serializers.IntegerField(source='order_item.quantity', read_only=True)
+    item_price = serializers.DecimalField(source='order_item.price', max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = ProductReturn
+        fields = [
+            'id', 'return_id', 'order', 'order_id', 'order_item', 'product_name', 'product_image',
+            'quantity', 'item_price', 'reason', 'description', 'status', 'refund_amount',
+            'refund_method', 'pickup_date', 'pickup_address', 'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'return_id', 'status', 'refund_amount', 'admin_notes', 'created_at', 'updated_at']
+    
+    def get_product_image(self, obj):
+        if obj.order_item.product.image:
+            return obj.order_item.product.image.url
+        return obj.order_item.product.image_url
+
+
+class ProductCancellationSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='order_item.product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    order_id = serializers.CharField(source='order.order_id', read_only=True)
+    quantity = serializers.IntegerField(source='order_item.quantity', read_only=True)
+    item_price = serializers.DecimalField(source='order_item.price', max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = ProductCancellation
+        fields = [
+            'id', 'cancellation_id', 'order', 'order_id', 'order_item', 'product_name', 'product_image',
+            'quantity', 'item_price', 'reason', 'description', 'status', 'refund_amount',
+            'refund_method', 'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'cancellation_id', 'status', 'refund_amount', 'admin_notes', 'created_at', 'updated_at']
+    
+    def get_product_image(self, obj):
+        if obj.order_item.product.image:
+            return obj.order_item.product.image.url
+        return obj.order_item.product.image_url
+
+
+class ProductReturnAdminSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='order_item.product.name', read_only=True)
+    order_id = serializers.CharField(source='order.order_id', read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    quantity = serializers.IntegerField(source='order_item.quantity', read_only=True)
+    item_price = serializers.DecimalField(source='order_item.price', max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = ProductReturn
+        fields = [
+            'id', 'return_id', 'order', 'order_id', 'order_item', 'product_name',
+            'user', 'user_name', 'user_email', 'customer_name', 'customer_email',
+            'quantity', 'item_price', 'reason', 'description', 'status', 'refund_amount',
+            'refund_method', 'pickup_date', 'pickup_address', 'admin_notes', 'created_at', 'updated_at'
+        ]
+    
+    def get_customer_name(self, obj):
+        if obj.user:
+            full_name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+            return full_name if full_name else obj.user.username
+        return None
+    
+    def get_customer_email(self, obj):
+        return obj.user.email if obj.user else None
+
+
+class ProductCancellationAdminSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='order_item.product.name', read_only=True)
+    order_id = serializers.CharField(source='order.order_id', read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    quantity = serializers.IntegerField(source='order_item.quantity', read_only=True)
+    item_price = serializers.DecimalField(source='order_item.price', max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = ProductCancellation
+        fields = [
+            'id', 'cancellation_id', 'order', 'order_id', 'order_item', 'product_name',
+            'user', 'user_name', 'user_email', 'customer_name', 'customer_email',
+            'quantity', 'item_price', 'reason', 'description', 'status', 'refund_amount',
+            'refund_method', 'admin_notes', 'created_at', 'updated_at'
+        ]
+    
+    def get_customer_name(self, obj):
+        if obj.user:
+            full_name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+            return full_name if full_name else obj.user.username
+        return None
+    
+    def get_customer_email(self, obj):
+        return obj.user.email if obj.user else None
