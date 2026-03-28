@@ -11,8 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, OTPVerification, ProductReturn, ProductCancellation
-from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer, ProductReturnSerializer, ProductCancellationSerializer, ProductReturnAdminSerializer, ProductCancellationAdminSerializer
+from .models import Category, Product, Profile, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, OTPVerification, ProductReturn, ProductCancellation, WholesaleApplication
+from .serializers import CategorySerializer, ProductSerializer, CartItemSerializer, AddressSerializer, OrderSerializer, WalletSerializer, ReviewSerializer, WishlistSerializer, SupportTicketSerializer, TicketReplySerializer, FAQSerializer, StorySectionSerializer, BlogPostSerializer, ProductReturnSerializer, ProductCancellationSerializer, ProductReturnAdminSerializer, ProductCancellationAdminSerializer, WholesaleApplicationSerializer
 import random
 import string
 import secrets
@@ -1481,3 +1481,38 @@ def admin_cancellation_detail(request, cancellation_id):
         
         serializer = ProductCancellationAdminSerializer(cancellation)
         return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def wholesale_apply(request):
+    serializer = WholesaleApplicationSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'Application submitted successfully!'}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def admin_wholesale_applications(request):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    applications = WholesaleApplication.objects.all().order_by('-created_at')
+    serializer = WholesaleApplicationSerializer(applications, many=True)
+    return Response(serializer.data)
+
+@api_view(['PUT'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def update_wholesale_status(request, pk):
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        app = WholesaleApplication.objects.get(pk=pk)
+        app.status = request.data.get('status', app.status)
+        app.save()
+        return Response(WholesaleApplicationSerializer(app).data)
+    except WholesaleApplication.DoesNotExist:
+        return Response({'error': 'Application not found'}, status=404)

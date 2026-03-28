@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, ProductReturn, ProductCancellation
+from .models import Category, Product, ProductImage, CartItem, Address, Order, OrderItem, Wallet, WalletTransaction, Review, Wishlist, SupportTicket, TicketReply, FAQ, StorySection, BlogPost, ProductReturn, ProductCancellation, WholesaleApplication
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
@@ -333,3 +333,9 @@ class ProductCancellationAdminSerializer(serializers.ModelSerializer):
     
     def get_customer_email(self, obj):
         return obj.user.email if obj.user else None
+
+class WholesaleApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WholesaleApplication
+        fields = '__all__'
+        read_only_fields = ['status', 'created_at', 'updated_at']

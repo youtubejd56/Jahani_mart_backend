@@ -43,6 +43,10 @@ urlpatterns = [
     path('reviews/', views.reviews, name='reviews'),
     path('reviews/<int:review_id>/', views.review_detail, name='review_detail'),
     path('products/<int:product_id>/reviews/', views.product_reviews, name='product_reviews'),
+    # Wholesale Applications
+    path('wholesale/apply/', views.wholesale_apply, name='wholesale_apply'),
+    path('admin/wholesale/', views.admin_wholesale_applications, name='admin_wholesale_applications'),
+    path('admin/wholesale/<int:pk>/update/', views.update_wholesale_status, name='update_wholesale_status'),
     # Admin Reviews
     path('admin/reviews/', views.admin_reviews, name='admin_reviews'),
     # Wishlist
