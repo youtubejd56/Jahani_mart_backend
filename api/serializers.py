@@ -53,10 +53,11 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    banner_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'icon', 'image', 'image_url']
+        fields = ['id', 'name', 'icon', 'image', 'image_url', 'banner_image', 'banner_image_url']
         
     def get_image_url(self, obj):
         try:
@@ -65,6 +66,14 @@ class CategorySerializer(serializers.ModelSerializer):
         except Exception:
             pass
         return obj.image_url or None
+
+    def get_banner_image_url(self, obj):
+        try:
+            if obj.banner_image:
+                return obj.banner_image.url
+        except Exception:
+            pass
+        return obj.banner_image_url or None
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
