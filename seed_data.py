@@ -21,6 +21,10 @@ def seed_categories():
         {'name': 'Home & Living', 'icon': 'home', 'image': 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=400'},
         {'name': 'Sports', 'icon': 'dumbbell', 'image': 'https://images.unsplash.com/photo-1461896836934- voices-of-liberty?w=400'},
         {'name': 'Books', 'icon': 'book', 'image': 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400'},
+        {'name': 'Perfumes', 'icon': 'sparkles', 'image': 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400'},
+        {'name': 'Spices', 'icon': 'container', 'image': 'https://images.unsplash.com/photo-1532336414038-cf19250c5757?w=400'},
+        {'name': 'Gemstones', 'icon': 'gem', 'image': 'https://images.unsplash.com/photo-1551300732-2628439403ba?w=400'},
+        {'name': 'Premium Collections', 'icon': 'star', 'image': 'https://images.unsplash.com/photo-1513507643584-8bbd8c6d4817?w=400'},
     ]
     
     categories = []
@@ -63,6 +67,19 @@ def seed_products(categories):
         # Books
         {'name': 'The Art of Programming', 'description': 'Comprehensive guide to coding', 'price': 599, 'original_price': 999, 'rating': 4.8, 'category': categories[4], 'image': 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400', 'stock': 120},
         {'name': 'Business Strategy Masterclass', 'description': 'Learn from industry experts', 'price': 449, 'original_price': 799, 'rating': 4.4, 'category': categories[4], 'image': 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400', 'stock': 90},
+        
+        # New Categories: Perfumes, Spices, Gemstones (Categories 5, 6, 7)
+        # Perfumes
+        {'name': 'Royal Orchid Perfume', 'description': 'Long-lasting floral fragrance with musk base notes', 'price': 2699, 'original_price': 2999, 'discount': 10, 'rating': 4.9, 'category': categories[5], 'image_url': 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400', 'stock': 40},
+        
+        # Spices
+        {'name': 'Organic Saffron (1g)', 'description': 'Premium grade A Kashmiri saffron', 'price': 315, 'original_price': 350, 'discount': 10, 'rating': 4.8, 'category': categories[6], 'image_url': 'https://images.unsplash.com/photo-1615485290382-441e4d0c9cb5?w=400', 'stock': 100},
+        
+        # Gemstones
+        {'name': 'Pure Raw Ruby', 'description': 'High-quality unheated raw ruby gemstone from Myanmar', 'price': 8999, 'original_price': 9999, 'discount': 10, 'rating': 5.0, 'category': categories[7], 'image_url': 'https://images.unsplash.com/photo-1588444839799-eb0c29ec8b89?w=400', 'stock': 10},
+        
+        # Premium Collections (Mixed Products) - Category 8
+        {'name': 'Luxury Trio Gift Set', 'description': 'Exquisite collection featuring our signature Royal Orchid Perfume, Organic Saffron, and a Pure Raw Ruby gemstone.', 'price': 10800, 'original_price': 12000, 'discount': 10, 'rating': 5.0, 'category': categories[8], 'image_url': 'https://images.unsplash.com/photo-1513507643584-8bbd8c6d4817?w=400', 'stock': 15},
     ]
     
     for prod_data in products_data:
