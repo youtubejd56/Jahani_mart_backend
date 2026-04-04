@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
+from django.conf import settings
 from django.utils import timezone
 from django.db import models
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -16,8 +17,91 @@ from .serializers import CategorySerializer, ProductSerializer, CartItemSerializ
 import random
 import string
 import secrets
+import os
+import json
+from urllib import parse, request as urllib_request, error as urllib_error
 from datetime import timedelta
 from .views_support import support_tickets, support_ticket_detail, ticket_reply, faq_list, create_support_ticket, admin_all_tickets, admin_ticket_detail, admin_ticket_reply, admin_update_ticket_status
+
+
+def normalize_mobile_for_msg91(mobile):
+    """MSG91 expects digits-only international format, e.g. 919876543210."""
+    return ''.join(ch for ch in mobile if ch.isdigit())
+
+
+def send_msg91_password_reset_otp(mobile, otp):
+    """
+    Send forgot-password OTP via MSG91.
+    Returns (success, error_message).
+    """
+    api_key = os.environ.get('MSG91_API_KEY', '').strip()
+    if not api_key:
+        return False, 'MSG91 API key is not configured.'
+
+    recipient_mobile = normalize_mobile_for_msg91(mobile)
+    if not recipient_mobile:
+        return False, 'Invalid mobile number for SMS delivery.'
+
+    sender_id = os.environ.get('MSG91_SENDER_ID', '').strip()
+    route = os.environ.get('MSG91_ROUTE', '4').strip() or '4'
+    message_template = os.environ.get(
+        'MSG91_OTP_MESSAGE',
+        'Your Jahani International password reset OTP is {otp}. It is valid for 10 minutes.'
+    )
+    message = message_template.format(otp=otp)
+
+    payload = {
+        'authkey': api_key,
+        'mobiles': recipient_mobile,
+        'message': message,
+        'route': route,
+    }
+    if sender_id:
+        payload['sender'] = sender_id
+
+    encoded_payload = parse.urlencode(payload).encode('utf-8')
+    req = urllib_request.Request(
+        'https://api.msg91.com/api/sendhttp.php',
+        data=encoded_payload,
+        method='POST',
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=10) as response:
+            raw_body = response.read().decode('utf-8', errors='replace').strip()
+    except urllib_error.HTTPError as exc:
+        error_body = exc.read().decode('utf-8', errors='replace').strip()
+        return False, f'MSG91 HTTP {exc.code}: {error_body or "Unknown error"}'
+    except urllib_error.URLError as exc:
+        return False, f'Unable to reach MSG91: {exc.reason}'
+    except Exception as exc:
+        return False, f'Unexpected SMS error: {str(exc)}'
+
+    if not raw_body:
+        return False, 'MSG91 returned an empty response.'
+
+    if raw_body.upper() == 'OK':
+        return True, ''
+
+    try:
+        parsed_body = json.loads(raw_body)
+    except json.JSONDecodeError:
+        parsed_body = None
+
+    if isinstance(parsed_body, dict):
+        response_type = str(parsed_body.get('type', '')).lower()
+        if response_type == 'success':
+            return True, ''
+
+        error_message = (
+            parsed_body.get('message')
+            or parsed_body.get('error')
+            or parsed_body.get('description')
+            or raw_body
+        )
+        return False, f'MSG91 rejected the SMS request: {error_message}'
+
+    return False, f'MSG91 rejected the SMS request: {raw_body}'
 
 def home(request):
     return JsonResponse({'message': 'Welcome to Jahani International API'})
@@ -667,13 +751,29 @@ def send_otp(request):
         expires_at=expires_at
     )
 
-    # In production: integrate SMS gateway (Twilio, MSG91, etc.)
-    # For demo: return OTP in response
-    return Response({
-        'message': 'OTP sent successfully',
-        'demo_otp': otp,   # REMOVE in production
-        'expires_in': 600  # seconds
-    })
+    sms_sent, sms_error = send_msg91_password_reset_otp(mobile, otp)
+
+    response_data = {
+        'message': 'OTP sent successfully' if sms_sent else 'OTP generated successfully',
+        'expires_in': 600
+    }
+
+    if sms_sent:
+        return Response(response_data)
+
+    if settings.DEBUG:
+        response_data.update({
+            'message': 'MSG91 delivery failed, using debug OTP response.',
+            'demo_otp': otp,
+            'sms_error': sms_error,
+        })
+        return Response(response_data)
+
+    OTPVerification.objects.filter(mobile=mobile, otp=otp, is_verified=False).delete()
+    return Response(
+        {'error': sms_error or 'Failed to send OTP. Please try again later.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE
+    )
 
 
 @csrf_exempt
