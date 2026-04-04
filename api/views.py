@@ -557,21 +557,28 @@ def register(request):
     if not mobile or not password:
         return Response({'error': 'Mobile number and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate mobile (digits only)
-    if not mobile.isdigit() or len(mobile) < 7:
-        return Response({'error': 'Enter a valid mobile number (digits only, min 7 digits)'}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate mobile (allow leading + then digits)
+    clean_mobile = mobile.replace(' ', '').replace('-', '')
+    is_valid_format = clean_mobile.isdigit() or (clean_mobile.startswith('+') and clean_mobile[1:].isdigit())
+    
+    if not is_valid_format or len(clean_mobile) < 7:
+        return Response({'error': 'Enter a valid mobile number (e.g. +91 9999999999)'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if mobile already exists
-    if Profile.objects.filter(mobile=mobile).exists():
-        return Response({'error': 'Mobile number already registered. Please login.'}, status=status.HTTP_400_BAD_REQUEST)
+    # Check if mobile already exists in Profile
+    if Profile.objects.filter(mobile=clean_mobile).exists():
+        return Response({'error': 'This mobile number is already registered. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Also check if username exists (since we use mobile as username)
+    if User.objects.filter(username=clean_mobile).exists():
+        return Response({'error': 'This number is already in use. Please login.'}, status=status.HTTP_400_BAD_REQUEST)
 
     # Check email uniqueness
     if email and User.objects.filter(email=email).exists():
         return Response({'error': 'Email already registered. Please use a different email.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Use mobile as username
+    # Use clean_mobile as username
     user = User.objects.create_user(
-        username=mobile,
+        username=clean_mobile,
         email=email,
         password=password,
         first_name=first_name,
@@ -579,7 +586,7 @@ def register(request):
     )
     
     # Create user profile with mobile number
-    Profile.objects.create(user=user, mobile=mobile)
+    Profile.objects.create(user=user, mobile=clean_mobile)
     
     return Response({
         'message': 'User registered successfully',
@@ -749,6 +756,7 @@ def reset_password(request):
 
 @csrf_exempt
 @api_view(['GET'])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def current_user(request):
     user = request.user
